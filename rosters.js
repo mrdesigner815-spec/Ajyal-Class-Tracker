@@ -144,15 +144,15 @@ const rosterSeed={
   ]
 };
 function mergeSchoolRosters(data){
- if(data.schoolRosterVersion===2)return false;
+ let changed=data.schoolRosterVersion!==3;
  for(const [c,names] of Object.entries(rosterSeed)){
-  if(!Object.hasOwn(data.classes,c))data.classes[c]=[];
+  if(!Object.hasOwn(data.classes,c)){data.classes[c]=[];changed=true;}
   names.forEach((name,index)=>{
    const id=`ajyal-${c}-${index+1}`,arabic=arabicRosterSeed[c][index];
-   const existing=data.classes[c].find(s=>s.id===id)||data.classes[c].find(s=>normalizeName(s.name)===normalizeName(arabic)||normalizeName(s.name)===normalizeName(name));
-   if(existing)existing.name=name;
-   else data.classes[c].push({id,name});
+   const matches=data.classes[c].filter(s=>s.id===id||normalizeName(s.name)===normalizeName(arabic)||normalizeName(s.name)===normalizeName(name));
+   if(matches.length){for(const student of matches){if(student.name!==name){student.name=name;changed=true;}}}
+   else {data.classes[c].push({id,name});changed=true;}
   });
  }
- data.schoolRosterVersion=2;return true;
+ data.schoolRosterVersion=3;return changed;
 }
