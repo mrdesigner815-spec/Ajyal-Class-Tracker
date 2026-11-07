@@ -1,2 +1,5 @@
-# Ajyal-Class-Tracker
-Arabic classroom assessment and daily reports for Ajyal Al-Mawahib Schools
+# Ajyal Class Tracker
+
+Arabic classroom assessment with daily reports, PDF downloads, bar charts and radar charts.
+
+Student ratings remain in browser local storage. Use backup export/import when changing devices or site domains.
