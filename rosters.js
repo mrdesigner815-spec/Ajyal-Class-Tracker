@@ -1,4 +1,4 @@
-const classLabels={'5A':'الصف الخامس · 5A','6A':'الصف السادس أ · 6A','6B':'الصف السادس ب · 6B'};
+const classLabels={'5A':'Grade 5 · 5A','6A':'Grade 6 · 6A','6B':'Grade 6 · 6B'};
 const rosterSeed={
 '5A':[
 'أسامة قيس إياد المصري',
