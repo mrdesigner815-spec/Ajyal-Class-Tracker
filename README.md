@@ -2,4 +2,4 @@
 
 Arabic classroom assessment with daily reports, PDF downloads, bar charts and radar charts.
 
-Student ratings remain in browser local storage. Use backup export/import when changing devices or site domains.
+Ratings are saved in the browser and synced to Supabase after teacher sign-in (see cloud.js). Backup export/import still works.
