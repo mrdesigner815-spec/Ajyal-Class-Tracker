@@ -8,6 +8,7 @@
 'use strict';
 const SB_URL='https://wupaknfphtvowaskdban.supabase.co',SB_KEY='sb_publishable_mwm6ymTJzys6szgp93iKRw_5KjHFFSH',LINK=key+':cloud-linked';
 let sb=null,snap=null,timer=null,chain=Promise.resolve(),entering=false;
+window.AjyalCloud={sb:()=>sb,ready:()=>!!snap};
 const BAD=['__proto__','constructor','prototype'];
 const ser=v=>JSON.stringify(v.row);
 const chunks=(a,n=200)=>Array.from({length:Math.ceil(a.length/n)},(_,i)=>a.slice(i*n,i*n+n));
@@ -128,6 +129,7 @@ async function enter(){
    apply(linked?cloudDb:union(JSON.parse(JSON.stringify(cloudDb)),db)); /* first link: keep local-only data too */
   }
   hideGate();
+  window.dispatchEvent(new Event('ajyal-cloud-ready'));
   await push();
  }catch(e){
   console.error(e);
@@ -139,7 +141,7 @@ async function refresh(){
   clearTimeout(timer);await push();
   const {cl,st,rc}=await fetchCloud();
   const cloudDb=fromCloud(cl,st,rc);snap=stateOf(cloudDb);apply(cloudDb);
-  notify('Refreshed from cloud');
+  notify('Refreshed from cloud');window.dispatchEvent(new Event('ajyal-cloud-ready'));
  }catch(e){console.error(e);notify('Could not refresh from the cloud.')}
 }
 
