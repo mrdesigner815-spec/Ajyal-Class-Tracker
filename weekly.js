@@ -15,13 +15,14 @@ const pct=v=>v===null||v===undefined?null:v/5*100;
 const pctText=v=>v===null||v===undefined?'—':Math.round(pct(v))+'%';
 const level=v=>v===null?'Not recorded':v>=4.5?'Excellent':v>=3.5?'Very good':v>=2.5?'Good':v>=1.5?'Fair':'Poor';
 const levelColor=v=>v===null?'#787d8e':v>=3.5?'#248977':v>=2.5?'#8f6b30':'#a73168';
-const label=()=>(typeof classLabels==='object'&&classLabels&&classLabels[cls])||cls;
+const labelOf=c=>(typeof classLabels==='object'&&classLabels&&classLabels[c])||c;
+const norm=s=>typeof normalizeName==='function'?normalizeName(s):String(s).toLowerCase().trim();
 
-let from=startOf(today),to=addDays(from,4);
+let from=startOf(today),to=addDays(from,4),wcls=cls,wsid='',wq='';
 
 /* ---------- data ---------- */
-function collect(c,f,t){
- const list=db.classes[c]||[],byStudent=new Map(list.map(s=>[s.id,{id:s.id,name:s.name,days:new Set(),vals:skills.map(()=>[])}])),
+function collect(c,f,t,sid){
+ const list=(db.classes[c]||[]).filter(s=>!sid||s.id===sid),byStudent=new Map(list.map(s=>[s.id,{id:s.id,name:s.name,days:new Set(),vals:skills.map(()=>[])}])),
   dayVals=new Map(),notes=[];
  for(const [k,r] of Object.entries(db.records)){
   let p;try{p=JSON.parse(k)}catch{continue}
@@ -76,22 +77,30 @@ style.textContent=[
 ].join('');
 document.head.appendChild(style);
 
+function studentOpts(){
+ const q=norm(wq),list=(db.classes[wcls]||[]).filter(s=>!q||norm(s.name).includes(q)||s.id===wsid);
+ return '<option value="">All students</option>'+list.map(s=>`<option value="${esc(s.id)}" ${s.id===wsid?'selected':''}>${esc(s.name)}</option>`).join('');
+}
 function delta(cur,prev){
  if(cur===null||prev===null)return '<span class="small">No previous period data to compare</span>';
  const d=pct(cur)-pct(prev),r=Math.round(d);
  return `<span class="${d>=0?'wk-up':'wk-down'}">${r>0?'▲ +':r<0?'▼ ':'● '}${r}%</span> <span class="small">vs previous ${spanDays(from,to)} days</span>`;
 }
 function render(){
- if(!db.classes[cls]){sec.innerHTML='<div class="card empty">Select a class to view the weekly analysis.</div>';return}
- const len=spanDays(from,to),w=collect(cls,from,to),prev=collect(cls,addDays(from,-len),addDays(from,-1)),
+ if(!db.classes[wcls])wcls=db.classes[cls]?cls:Object.keys(db.classes)[0];
+ if(!wcls){sec.innerHTML='<div class="card empty">Select a class to view the weekly analysis.</div>';return}
+ if(wsid&&!(db.classes[wcls]||[]).some(s=>s.id===wsid))wsid='';
+ const label=()=>labelOf(wcls),one=(db.classes[wcls]||[]).find(s=>s.id===wsid),
+  classOpts=Object.keys(db.classes).sort((a,b)=>a.localeCompare(b)).map(c=>`<option value="${esc(c)}" ${c===wcls?'selected':''}>${esc(labelOf(c))}</option>`).join('');
+ const len=spanDays(from,to),w=collect(wcls,from,to,wsid),prev=collect(wcls,addDays(from,-len),addDays(from,-1),wsid),
   final=today>=to,ranked=w.students.filter(s=>s.mean!==null).sort((a,b)=>b.mean-a.mean||a.name.localeCompare(b.name)),
   unassessed=w.students.filter(s=>s.mean===null),
   strengths=skills.filter((_,i)=>w.skillMeans[i]!==null&&w.skillMeans[i]>=4),
   improve=skills.filter((_,i)=>w.skillMeans[i]!==null&&w.skillMeans[i]<3),
   top=ranked.slice(0,3),support=ranked.filter(s=>s.mean<3).slice().reverse(),
   radarOK=w.skillMeans.every(v=>v!==null);
- let h=`<div class="card"><div class="row"><div><span class="eyebrow">التحليلي الأسبوعي · WEEKLY ANALYSIS</span><h2 style="margin-top:6px">Weekly statistical analysis · Class ${esc(label())}</h2><p class="small" style="margin:0">Based on all recorded ratings between the two dates. Missing ratings are not counted as zero. Reports use Sunday → Thursday by default.</p></div><span class="wk-badge ${final?'wk-final':'wk-prov'}">${final?'✓ Final weekly report':'● Provisional — week in progress'}</span></div>`;
- h+=`<div class="wk-controls no-print"><div><label for="wkFrom">From date</label><input id="wkFrom" type="date" value="${from}"></div><div><label for="wkTo">To date</label><input id="wkTo" type="date" value="${to}"></div><button data-wk="prev">← Previous week</button><button data-wk="now">This week</button><button data-wk="next">Next week →</button><button data-wk="print" class="primary">Print / Save as PDF</button></div>`;
+ let h=`<div class="card"><div class="row"><div><span class="eyebrow">التحليلي الأسبوعي · WEEKLY ANALYSIS</span><h2 style="margin-top:6px">Weekly statistical analysis · ${one?'<span style="unicode-bidi:plaintext">'+esc(one.name)+'</span> · ':''}Class ${esc(label())}</h2><p class="small" style="margin:0">Based on all recorded ratings between the two dates. Missing ratings are not counted as zero. Reports use Sunday → Thursday by default.</p></div><span class="wk-badge ${final?'wk-final':'wk-prov'}">${final?'✓ Final weekly report':'● Provisional — week in progress'}</span></div>`;
+ h+=`<div class="wk-controls no-print"><div><label for="wkClass">Class</label><select id="wkClass">${classOpts}</select></div><div><label for="wkSearch">Search student</label><input id="wkSearch" type="search" placeholder="Type a student name…" value="${esc(wq)}" autocomplete="off" style="unicode-bidi:plaintext"></div><div><label for="wkStudent">Student</label><select id="wkStudent">${studentOpts()}</select></div><div><label for="wkFrom">From date</label><input id="wkFrom" type="date" value="${from}"></div><div><label for="wkTo">To date</label><input id="wkTo" type="date" value="${to}"></div><button data-wk="prev">← Previous week</button><button data-wk="now">This week</button><button data-wk="next">Next week →</button><button data-wk="print" class="primary">Print / Save as PDF</button></div>`;
  h+=`<p class="small">${fmtDate(from)} → ${fmtDate(to)} · ${w.days.length} assessed day${w.days.length===1?'':'s'}${w.days.length?' ('+w.days.map(d=>shortDay(d.day)).join(', ')+')':''}</p></div>`;
  if(!w.n){h+='<div class="card empty">No ratings were recorded for this class between these dates.<br>Choose another date range or record ratings in “Quick rating”.</div>';sec.innerHTML=h;return}
 
@@ -107,7 +116,7 @@ function render(){
  /* detailed report */
  h+=`<div class="card report"><h2>Detailed ${final?'Thursday ':''}report</h2><p>During ${fmtDate(from)} → ${fmtDate(to)}, class ${esc(label())} reached an overall performance of <b>${pctText(w.overall)}</b> (${fmt(w.overall)} / 5 · ${level(w.overall)}) across ${w.days.length} assessed day${w.days.length===1?'':'s'}. ${ranked.length} of ${w.students.length} students were assessed${prev.overall!==null?`; the previous ${len} days averaged ${pctText(prev.overall)}`:''}.</p>`;
  h+=`<div class="two"><div><h3 style="color:var(--green)">Strengths (average 4 or higher)</h3><p>${strengths.join(', ')||'No skills have a weekly average of 4 or higher yet.'}</p></div><div><h3 style="color:var(--pink)">Areas for improvement (below 3)</h3><p>${improve.join(', ')||'No recorded skills are below 3.'}</p></div></div>`;
- h+=`<div class="two"><div><h3 style="color:var(--green)">Top performers</h3><p>${top.length?top.map((s,i)=>`${i+1}. <span style="unicode-bidi:plaintext">${esc(s.name)}</span> — ${pctText(s.mean)}`).join('<br>'):'—'}</p></div><div><h3 style="color:var(--pink)">Students who need support (below 60%)</h3><p>${support.length?support.map(s=>`<span style="unicode-bidi:plaintext">${esc(s.name)}</span> — ${pctText(s.mean)}`).join('<br>'):'No assessed student is below 60%.'}</p></div></div>`;
+ if(!wsid)h+=`<div class="two"><div><h3 style="color:var(--green)">Top performers</h3><p>${top.length?top.map((s,i)=>`${i+1}. <span style="unicode-bidi:plaintext">${esc(s.name)}</span> — ${pctText(s.mean)}`).join('<br>'):'—'}</p></div><div><h3 style="color:var(--pink)">Students who need support (below 60%)</h3><p>${support.length?support.map(s=>`<span style="unicode-bidi:plaintext">${esc(s.name)}</span> — ${pctText(s.mean)}`).join('<br>'):'No assessed student is below 60%.'}</p></div></div>`;
  if(unassessed.length)h+=`<p class="small"><b>Not assessed in this range:</b> ${unassessed.map(s=>esc(s.name)).join('، ')}</p>`;
  h+=`<small>Insights use recorded ratings only. Missing ratings do not indicate poor performance.</small></div>`;
 
@@ -133,7 +142,13 @@ sec.onclick=e=>{
  else if(a==='now'){const s=startOf(today);setRange(s,addDays(s,4))}
  else if(a==='print')window.print();
 };
+sec.oninput=e=>{
+ if(e.target.id!=='wkSearch')return;
+ wq=e.target.value;document.getElementById('wkStudent').innerHTML=studentOpts();
+};
 sec.onchange=e=>{
+ if(e.target.id==='wkClass'){wcls=e.target.value;wsid='';wq='';render();return}
+ if(e.target.id==='wkStudent'){wsid=e.target.value;render();return}
  if(e.target.id!=='wkFrom'&&e.target.id!=='wkTo')return;
  let f=document.getElementById('wkFrom').value,t=document.getElementById('wkTo').value;
  if(!/^\d{4}-\d{2}-\d{2}$/.test(f)||!/^\d{4}-\d{2}-\d{2}$/.test(t)){notify('Choose both dates');render();return}
@@ -145,7 +160,7 @@ document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()
  sec.classList.toggle('hidden',!on);
  if(on)render();
 }));
-$('classSelect').addEventListener('change',()=>{if(!sec.classList.contains('hidden'))render()});
+$('classSelect').addEventListener('change',()=>{wcls=cls;wsid='';wq='';if(!sec.classList.contains('hidden'))render()});
 window.addEventListener('ajyal-cloud-ready',()=>{if(!sec.classList.contains('hidden'))render()});
 window.WeeklyAnalysis={collect,render};
 })();
